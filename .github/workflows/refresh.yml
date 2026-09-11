@@ -6,6 +6,9 @@ name: refresh nameservers
 on:
   schedule:
     - cron: "0 6 * * 0"
+  push:
+    paths:
+      - suspects.txt
   workflow_dispatch:
 
 permissions:
@@ -25,7 +28,7 @@ jobs:
         with:
           python-version: "3.13"
           enable-cache: true
-      - name: Rebuild nameservers.txt
+      - name: Rebuild nameservers.txt (pool seed + suspects.txt)
         run: uv run refresh-nameservers | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Commit if the list changed
         run: |
