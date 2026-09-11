@@ -26,6 +26,7 @@ from dns_servers.validate import (
     DEFAULT_TIMEOUT_S,
     URLHAUS_FEED_URL,
     ValidationReport,
+    read_resolvers,
     validate,
     write_atomic,
 )
@@ -167,6 +168,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--include-ipv6", action="store_true")
     parser.add_argument("--limit", type=int, default=0, help="probe only the first N candidates")
     parser.add_argument("--sample", type=int, default=0, help="probe a random N-candidate sample")
+    parser.add_argument(
+        "--suspects",
+        type=Path,
+        default=REPO_ROOT / "suspects.txt",
+        help="extra candidate resolver IPs to revalidate alongside the pool seed",
+    )
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S)
     parser.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY)
     parser.add_argument("--probes", nargs="+", default=list(DEFAULT_PROBES))
@@ -195,6 +202,13 @@ async def run(*, args: argparse.Namespace) -> int:
         candidates = sorted(random.sample(candidates, min(args.sample, len(candidates))), key=sort_key)
     if args.limit:
         candidates = candidates[: args.limit]
+    if args.suspects and args.suspects.is_file():
+        suspects = read_resolvers(path=args.suspects)
+        merged = set(candidates) | set(suspects)
+        logging.info(
+            "merged %d extra candidates, %d new", len(suspects), len(merged) - len(candidates)
+        )
+        candidates = sorted(merged, key=sort_key)
     if not candidates:
         logging.error("no candidates survived filtering")
         return 1
