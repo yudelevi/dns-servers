@@ -40,6 +40,7 @@ next move if the survivor count drifts down.
 
 ```bash
 uv sync
+uvx pre-commit install    # format/lint gate before every commit
 uv run refresh-nameservers                      # rebuild nameservers.txt end to end
 uv run refresh-nameservers --limit 500 --dry-run
 uv run validate-resolvers --input my-list.txt --output validated.txt
