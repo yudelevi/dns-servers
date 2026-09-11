@@ -205,9 +205,7 @@ async def run(*, args: argparse.Namespace) -> int:
     if args.suspects and args.suspects.is_file():
         suspects = read_resolvers(path=args.suspects)
         merged = set(candidates) | set(suspects)
-        logging.info(
-            "merged %d extra candidates, %d new", len(suspects), len(merged) - len(candidates)
-        )
+        logging.info("merged %d extra candidates, %d new", len(suspects), len(merged) - len(candidates))
         candidates = sorted(merged, key=sort_key)
     if not candidates:
         logging.error("no candidates survived filtering")
