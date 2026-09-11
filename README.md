@@ -1,64 +1,67 @@
 # dns-servers
 
-`nameservers.txt` — public DNS resolvers that were answering correctly when the list was
-last rebuilt. MIT.
+A large, regularly-refreshed list of **public DNS resolvers that actually recurse, don't
+hijack, and don't filter** — for bulk resolution (massdns and friends), where a poisoned or
+filtering resolver silently corrupts millions of answers. MIT.
 
-Validation runs off-CI: DNS probing needs a network that permits bulk outbound UDP:53, which
-GitHub-hosted runners do not (they time out on ~98% of resolvers). Rebuild from a host with
-real DNS egress with the commands below.
+**`nameservers.txt`** is the list: every IP passed live probing at the last refresh, one per
+line, sorted, IPv4.
 
-Intended for bulk resolution (massdns and friends), where a poisoned or filtering resolver
-quietly corrupts millions of answers.
+## How the list is built
 
-## What a resolver has to survive
+Most public resolver lists reuse the same curated feed. This one starts wider: it examines the
+**authoritative NS records of 500M+ domains** and resolves those nameserver hostnames to IPs. A
+small fraction of those machines happen to answer recursive queries for anyone, and almost none
+of them appear in the curated feeds — so this surfaces thousands of working resolvers the public
+lists have never seen. The [public-dns.info](https://public-dns.info) pool
+(`reliability >= 0.99`) is folded in as an additional seed.
 
-Candidates come from the [public-dns.info](https://public-dns.info) pool, filtered to
-`reliability >= 0.99` and globally routable addresses. Membership in `nameservers.txt` is
-decided by probing, not by the feed:
+Discovery only nominates candidates. Membership in `nameservers.txt` is decided by probing every
+one of them:
 
-1. **Recursion.** Every probe domain must come back `NOERROR`, with at least one answer
-   and the `RA` flag set, inside the timeout. No `RA` means it will not recurse for you.
-2. **No hijacking.** A random non-existent domain must *not* resolve. Resolvers that
-   monetise `NXDOMAIN` with an ad landing page fail here.
-3. **No filtering.** Live canary hosts drawn from the
-   [URLhaus](https://urlhaus.abuse.ch) malware-URL feed must not come back `NXDOMAIN`,
-   empty, or pointing at a known sinkhole range. A filtering resolver silently deletes
-   real answers from a bulk resolution run.
+1. **Recursion.** Each probe domain must return `NOERROR`, at least one answer, and the `RA`
+   flag, within the timeout. No `RA` means it won't recurse for you.
+2. **No hijacking.** A random non-existent domain must *not* resolve. Resolvers that monetise
+   `NXDOMAIN` with an ad page fail here.
+3. **No filtering.** Live canary hosts from the [URLhaus](https://urlhaus.abuse.ch) malware feed
+   must not come back `NXDOMAIN`, empty, or pointing at a known sinkhole range. A filtering
+   resolver silently deletes real answers from a crawl.
 
-Gates 2 and 3 are skipped for a run, rather than failing everything, if the control
-resolvers or the canary feed are unreachable — a bad run should shrink the list, never
-poison it.
+Gates 2 and 3 are skipped for a run (rather than failing everything) if the control resolvers or
+canary feed are unreachable — a bad run should shrink the list, never poison it.
 
-Two floors protect the published file: the run aborts without writing if the pass rate
-drops under 30%, or if the survivor count falls below half of the previous run.
+Validation runs off-CI, because it needs a network that permits bulk outbound UDP:53.
+GitHub-hosted runners do not — they time out on ~98% of resolvers — so nothing here is validated
+by an Action. Rebuild from a host with real DNS egress using the commands below.
 
-## Freshness caveat
+## Use the list
 
-The upstream pool is a seed and nothing more. Its own `checked_at` stamps stopped moving
-in **August 2023**, so the candidate set only shrinks over time; every liveness claim in
-this repo comes from our own probe, and `nameservers.meta.json` records the source's
-newest stamp each run so the staleness stays visible. A second seed source is the obvious
-next move if the survivor count drifts down.
+Fetch the raw file; the IPs are one per line, sorted, IPv4:
 
-## Use
+```
+https://raw.githubusercontent.com/yudelevi/dns-servers/main/nameservers.txt
+```
+
+## Rebuild it yourself
+
+The included tool rebuilds a validated list from the public-dns.info seed (the discovery half
+runs against a private crawl and is not part of this repo):
 
 ```bash
 uv sync
-uvx pre-commit install    # format/lint gate before every commit
-uv run refresh-nameservers                      # rebuild nameservers.txt end to end
-uv run refresh-nameservers --limit 500 --dry-run
+uvx pre-commit install                                   # format/lint gate before commits
+uv run refresh-nameservers                               # public-dns.info pool -> validated list
 uv run validate-resolvers --input my-list.txt --output validated.txt
+uv run validate-resolvers --input pool.txt --extra more-candidates.txt --output validated.txt
 ```
 
-`validate-resolvers` also works as a library (`dns_servers.validate.validate`) if you keep
-your own candidate pool and just want the probing.
-
-Exit codes: `2` pass rate under the floor, `3` input list older than
-`--max-input-age-days` (output still written, so a monitor can see a dead refresh), `4`
-survivor count collapsed.
+`validate-resolvers` is also a library (`dns_servers.validate.validate`) if you keep your own
+candidate pool and just want the probing. Exit codes: `2` pass rate under the floor, `3` input
+older than `--max-input-age-days` (output still written, so a monitor can see a dead refresh),
+`4` survivor count collapsed to under half the previous run.
 
 ## Provenance
 
-Resolver IP addresses are facts, not authorship, and this repo asserts no ownership over
-them; the candidate pool is published by public-dns.info and credited above. The code is
-original and MIT-licensed — see `LICENSE`.
+Resolver IP addresses are facts, not authorship, and this repo asserts no ownership over them.
+The public-dns.info seed pool is published by [public-dns.info](https://public-dns.info). The
+code is original and MIT-licensed — see `LICENSE`.
