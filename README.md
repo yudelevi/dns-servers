@@ -19,7 +19,7 @@ decided by probing, not by the feed:
 3. **No filtering.** Live canary hosts drawn from the
    [URLhaus](https://urlhaus.abuse.ch) malware-URL feed must not come back `NXDOMAIN`,
    empty, or pointing at a known sinkhole range. A filtering resolver silently deletes
-   real answers from a crawl.
+   real answers from a bulk resolution run.
 
 Gates 2 and 3 are skipped for a run, rather than failing everything, if the control
 resolvers or the canary feed are unreachable — a bad run should shrink the list, never
