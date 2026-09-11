@@ -1,7 +1,11 @@
 # dns-servers
 
-`nameservers.txt` — public DNS resolvers that were answering correctly the last time this
-repo's workflow ran. Rebuilt weekly by GitHub Actions. MIT.
+`nameservers.txt` — public DNS resolvers that were answering correctly when the list was
+last rebuilt. MIT.
+
+Validation runs off-CI: DNS probing needs a network that permits bulk outbound UDP:53, which
+GitHub-hosted runners do not (they time out on ~98% of resolvers). Rebuild from a host with
+real DNS egress with the commands below.
 
 Intended for bulk resolution (massdns and friends), where a poisoned or filtering resolver
 quietly corrupts millions of answers.
