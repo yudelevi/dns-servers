@@ -1,0 +1,34 @@
+[project]
+name = "dns-servers"
+version = "0.1.0"
+description = "Weekly-validated list of public DNS resolvers"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.4.2",
+    "ruff>=0.13.0",
+]
+
+[project.scripts]
+refresh-nameservers = "dns_servers.refresh:main"
+validate-resolvers = "dns_servers.validate:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dns_servers"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "BLE001"]
